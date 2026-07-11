@@ -97,6 +97,11 @@
         .cup-table{position:absolute;bottom:-20px;left:10%;width:80%;height:40px;background-color:#8B4513;border:4px solid #000;z-index:5;}
 
         .photo-card { min-width: 280px; height: 380px; background: white; border: 8px solid #f0f0f0; border-bottom-width: 30px; box-shadow: 4px 4px 10px rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 10px; snap-align: center; scroll-snap-align: center; }
+
+        /* [NEW] 두더지 잡기 */
+        .mole-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; width: 85%; max-width: 320px; margin-top: 24px; }
+        .mole-hole { aspect-ratio: 1 / 1; background-color: #8B4513; border: 4px solid #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; cursor: pointer; box-shadow: inset 0 -10px 0 rgba(0,0,0,0.3); -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+        .mole-hole:active { transform: scale(0.95); }
     </style>
 </head>
 <body>
@@ -236,12 +241,16 @@
         =============================== -->
         <div id="minigame-select-view" class="hidden absolute inset-0 bg-black/80 z-30 flex flex-col items-center justify-center p-6 fade-in">
             <h2 class="text-white text-3xl mb-4 text-shadow text-center">미니게임</h2>
-            <div class="bg-white p-4 border-4 border-black mb-6 w-full text-sm font-bold">
-                <p>🏆 <b>컵 안의 공</b>:<br>공이 든 컵을 맞추면 +500⭐<br>틀리면 -200⭐</p>
-                <p class="mt-2">🦟 <b>모기 잡기</b>:<br>모기 터치 시 +50⭐<br>새 터치 시 -30⭐</p>
+            <div class="bg-white p-3 border-4 border-black mb-4 w-full text-xs font-bold">
+                <p>🏆 <b>컵 안의 공</b>: 정답 +500⭐ / 오답 -200⭐</p>
+                <p class="mt-1">🦟 <b>모기 잡기</b>: 모기 +50⭐ / 새 -30⭐</p>
+                <p class="mt-1">🍎 <b>간식 받기</b>: 간식 +20⭐ / 💩 -50⭐</p>
+                <p class="mt-1">🐹 <b>두더지 잡기</b>: 두더지 +30⭐ / 💣 -50⭐</p>
             </div>
             <button class="pixel-btn primary !w-full" onclick="startCupGame()">컵 안의 공 맞추기</button>
             <button class="pixel-btn !w-full !bg-blue-300" onclick="startMosquitoGame()">날아다니는 모기 맞추기</button>
+            <button class="pixel-btn !w-full !bg-green-400" onclick="startCatchGame()">떨어지는 간식 받기</button>
+            <button class="pixel-btn !w-full !bg-purple-300" onclick="startMoleGame()">두더지 잡기</button>
         </div>
 
         <div id="cup-game-view" class="hidden absolute inset-0 bg-[#A0522D] z-40 flex flex-col items-center fade-in border-8 border-black">
@@ -256,6 +265,32 @@
         </div>
         <div id="mosquito-game-view" class="hidden absolute inset-0 bg-[#87CEEB] z-40 fade-in">
             <canvas id="mosqCanvas" class="w-full h-full absolute inset-0 z-40 touch-none"></canvas>
+        </div>
+
+        <!-- [NEW] 간식 받기 게임 -->
+        <div id="catch-game-view" class="hidden absolute inset-0 bg-[#87CEEB] z-40 fade-in">
+            <canvas id="catchCanvas" class="w-full h-full absolute inset-0 touch-none"></canvas>
+            <div class="absolute top-4 right-4 z-50 pointer-events-none flex flex-col gap-2 items-end">
+                <div class="bg-black/60 text-white px-3 py-1 border-2 border-white font-bold text-xl">⏱ <span id="catch-timer">30</span>초</div>
+                <div class="bg-black/60 text-white px-3 py-1 border-2 border-yellow-400 font-bold text-lg">🍎 <span id="catch-score">0</span>개</div>
+            </div>
+            <div id="catch-result" class="hidden absolute inset-0 bg-black/70 z-50 flex flex-col items-center justify-center fade-in">
+                <p class="text-white text-2xl font-bold text-shadow mb-6 text-center" id="catch-result-text"></p>
+                <button class="pixel-btn primary" onclick="initCatchGame()">다시하기</button>
+            </div>
+        </div>
+
+        <!-- [NEW] 두더지 잡기 게임 -->
+        <div id="mole-game-view" class="hidden absolute inset-0 bg-pastel-green z-40 fade-in flex flex-col items-center">
+            <h2 class="text-white text-2xl mt-20 text-shadow font-bold text-center">두더지를 잡아라!</h2>
+            <div class="flex gap-4 mt-2 font-bold">
+                <div class="bg-black/60 text-white px-3 py-1 border-2 border-white text-lg">⏱ <span id="mole-timer">20</span>초</div>
+                <div class="bg-black/60 text-white px-3 py-1 border-2 border-yellow-400 text-lg">🐹 <span id="mole-score">0</span>마리</div>
+            </div>
+            <div class="mole-grid" id="mole-grid"></div>
+            <div id="mole-result" class="hidden flex flex-col w-full px-8 mt-8">
+                <button class="pixel-btn primary !w-full" onclick="initMoleGame()">다시하기</button>
+            </div>
         </div>
 
         <!-- ==============================
@@ -569,7 +604,12 @@
             playSound('click'); closePreview();
             if (viewHistory.length > 1) {
                 const current = viewHistory.pop(); let targetView = 'home-view';
-                if (current === 'cup-game-view' || current === 'mosquito-game-view') { isCupGameActive = false; isMosqGameActive = false; cupGameGen++; cancelAnimationFrame(mosqAnimId); targetView = 'minigame-select-view'; }
+                if (current === 'cup-game-view' || current === 'mosquito-game-view' || current === 'catch-game-view' || current === 'mole-game-view') {
+                    isCupGameActive = false; isMosqGameActive = false; cupGameGen++; cancelAnimationFrame(mosqAnimId);
+                    isCatchGameActive = false; cancelAnimationFrame(catchAnimId); clearInterval(catchTimerInt);
+                    isMoleGameActive = false; clearInterval(moleSpawnInt); clearInterval(moleTimerInt);
+                    targetView = 'minigame-select-view';
+                }
                 viewHistory = ['title-view', targetView]; currentView = targetView;
                 document.getElementById(current).classList.add('hidden'); document.getElementById(targetView).classList.remove('hidden');
                 document.getElementById('global-star-ui').classList.remove('hidden'); // [FIX] 산책 등에서 돌아올 때 별 UI 복구
@@ -904,7 +944,7 @@
         let mosqAnimId, entities = [], isMosqGameActive = false;
         const p_mosq = ["  K  K  ","  KKKK  "," WWKKWW "," WWKKWW ","  KKKK  ","  K  K  "]; const p_bird = ["........","...QQ...","..QQQ..."," KQQQQW ","..QQQQ..","...QQ..."];
         function resizeMosqCanvas() { mosqCanvas.width = mosqCanvas.parentElement.clientWidth; mosqCanvas.height = mosqCanvas.parentElement.clientHeight; }
-        window.addEventListener('resize', () => { if(currentView === 'mosquito-game-view') resizeMosqCanvas(); }); // [FIX] 화면 회전/리사이즈 대응
+        window.addEventListener('resize', () => { if(currentView === 'mosquito-game-view') resizeMosqCanvas(); if(currentView === 'catch-game-view') resizeCatchCanvas(); }); // [FIX] 화면 회전/리사이즈 대응
         function startMosquitoGame() { showView('mosquito-game-view'); isMosqGameActive = true; entities = []; mosqGameLoop(); }
         function mosqGameLoop() {
             if(!isMosqGameActive) return; mosqCtx.clearRect(0, 0, mosqCanvas.width, mosqCanvas.height);
@@ -936,11 +976,130 @@
                 }
             }
         }
-        function showMosqPopup(x, y, text, color) {
-            const colorClass = color === 'yellow' ? 'text-yellow-400' : 'text-red-400'; // [FIX] 동적 클래스명 제거 (빌드 Tailwind 호환)
+        function showFloatPopup(parentId, x, y, text, color) { // [NEW] 범용 점수 팝업
+            const colorClass = color === 'yellow' ? 'text-yellow-400' : 'text-red-400';
             const popup = document.createElement('div'); popup.innerText = text; popup.className = `absolute ${colorClass} text-3xl font-bold text-shadow z-50 pointer-events-none`;
             popup.style.left = `${x}px`; popup.style.top = `${y}px`; popup.style.transform = 'translate(-50%, -50%)'; popup.style.transition = 'all 0.5s ease-out';
-            document.getElementById('mosquito-game-view').appendChild(popup); setTimeout(() => { popup.style.top = `${y - 50}px`; popup.style.opacity = '0'; }, 50); setTimeout(() => popup.remove(), 550);
+            document.getElementById(parentId).appendChild(popup); setTimeout(() => { popup.style.top = `${y - 50}px`; popup.style.opacity = '0'; }, 50); setTimeout(() => popup.remove(), 550);
+        }
+        function showMosqPopup(x, y, text, color) { showFloatPopup('mosquito-game-view', x, y, text, color); }
+
+        // ==============================
+        // [NEW] 미니게임 3: 떨어지는 간식 받기 (30초)
+        // ==============================
+        const catchCanvas = document.getElementById('catchCanvas'); const catchCtx = catchCanvas.getContext('2d');
+        let catchAnimId, catchTimerInt, catchItems = [], isCatchGameActive = false;
+        let catchPlayerX = 0, catchTimeLeft = 30, catchScore = 0;
+        const catchGoodEmojis = ['🍎', '🍞', '🥛', '🍬', '🍖'];
+        const catchBabyBuf = document.createElement('canvas'); catchBabyBuf.width = 16; catchBabyBuf.height = 16;
+        function resizeCatchCanvas() { catchCanvas.width = catchCanvas.parentElement.clientWidth; catchCanvas.height = catchCanvas.parentElement.clientHeight; }
+        function startCatchGame() { showView('catch-game-view'); initCatchGame(); }
+        function initCatchGame() {
+            playSound('click'); resizeCatchCanvas();
+            document.getElementById('catch-result').classList.add('hidden');
+            isCatchGameActive = true; catchItems = []; catchScore = 0; catchTimeLeft = 30; catchPlayerX = catchCanvas.width / 2;
+            document.getElementById('catch-timer').innerText = catchTimeLeft; document.getElementById('catch-score').innerText = 0;
+            clearInterval(catchTimerInt); cancelAnimationFrame(catchAnimId);
+            catchTimerInt = setInterval(() => {
+                catchTimeLeft--; document.getElementById('catch-timer').innerText = Math.max(0, catchTimeLeft);
+                if (catchTimeLeft <= 0) endCatchGame();
+            }, 1000);
+            catchGameLoop();
+        }
+        function endCatchGame() {
+            if (!isCatchGameActive) return;
+            isCatchGameActive = false; clearInterval(catchTimerInt); cancelAnimationFrame(catchAnimId);
+            addGrowth(Math.min(20, catchScore)); playSound(catchScore > 0 ? 'levelup' : 'fail');
+            document.getElementById('catch-result-text').innerHTML = `게임 종료!<br>간식을 ${catchScore}개 받았어요!`;
+            document.getElementById('catch-result').classList.remove('hidden');
+        }
+        function catchGameLoop() {
+            if (!isCatchGameActive) return;
+            const W = catchCanvas.width, H = catchCanvas.height;
+            catchCtx.clearRect(0, 0, W, H);
+            // 바닥
+            catchCtx.fillStyle = '#4ADE80'; catchCtx.fillRect(0, H - 60, W, 60);
+            catchCtx.fillStyle = '#000'; catchCtx.fillRect(0, H - 64, W, 4);
+            // 아기 (현재 착용 아이템 그대로)
+            drawCompositeAvatar(catchBabyBuf.getContext('2d'), globalFrame);
+            catchCtx.imageSmoothingEnabled = false;
+            const bw = 110, bx = catchPlayerX - bw / 2, by = H - 60 - bw;
+            catchCtx.drawImage(catchBabyBuf, bx, by, bw, bw);
+            // 아이템 스폰
+            if (Math.random() < 0.045 + Math.min(0.03, level * 0.002)) {
+                const bad = Math.random() < 0.25;
+                catchItems.push({ x: 40 + Math.random() * (W - 80), y: -30, vy: 3 + Math.random() * 3, bad, emoji: bad ? '💩' : catchGoodEmojis[Math.floor(Math.random() * catchGoodEmojis.length)] });
+            }
+            catchCtx.font = '34px sans-serif'; catchCtx.textAlign = 'center';
+            for (let i = catchItems.length - 1; i >= 0; i--) {
+                const it = catchItems[i]; it.y += it.vy;
+                catchCtx.fillText(it.emoji, it.x, it.y);
+                const caught = it.y > by + 40 && it.y < H - 40 && Math.abs(it.x - catchPlayerX) < 58;
+                if (caught) {
+                    catchItems.splice(i, 1);
+                    if (it.bad) { playSound('fail'); addStars(-50); showFloatPopup('catch-game-view', it.x, it.y, '-50', 'red'); }
+                    else { playSound('coin'); addStars(20); catchScore++; document.getElementById('catch-score').innerText = catchScore; showFloatPopup('catch-game-view', it.x, it.y, '+20', 'yellow'); }
+                } else if (it.y > H + 40) { catchItems.splice(i, 1); }
+            }
+            catchAnimId = requestAnimationFrame(catchGameLoop);
+        }
+        function catchMove(clientX) {
+            if (!isCatchGameActive) return;
+            const rect = catchCanvas.getBoundingClientRect();
+            catchPlayerX = Math.max(55, Math.min(catchCanvas.width - 55, (clientX - rect.left) * (catchCanvas.width / rect.width)));
+        }
+        catchCanvas.addEventListener('touchstart', e => { e.preventDefault(); catchMove(e.touches[0].clientX); }, { passive: false });
+        catchCanvas.addEventListener('touchmove', e => { e.preventDefault(); catchMove(e.touches[0].clientX); }, { passive: false });
+        catchCanvas.addEventListener('mousedown', e => catchMove(e.clientX));
+        catchCanvas.addEventListener('mousemove', e => { if (e.buttons) catchMove(e.clientX); });
+
+        // ==============================
+        // [NEW] 미니게임 4: 두더지 잡기 (20초)
+        // ==============================
+        let moleSpawnInt, moleTimerInt, isMoleGameActive = false, moleTimeLeft = 20, moleScore = 0;
+        function startMoleGame() { showView('mole-game-view'); initMoleGame(); }
+        function initMoleGame() {
+            playSound('click');
+            const grid = document.getElementById('mole-grid'); grid.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const h = document.createElement('div'); h.className = 'mole-hole';
+                h.addEventListener('mousedown', () => hitMole(h));
+                h.addEventListener('touchstart', (e) => { e.preventDefault(); hitMole(h); }, { passive: false });
+                grid.appendChild(h);
+            }
+            document.getElementById('mole-result').classList.add('hidden');
+            isMoleGameActive = true; moleScore = 0; moleTimeLeft = 20;
+            document.getElementById('mole-score').innerText = 0; document.getElementById('mole-timer').innerText = 20;
+            clearInterval(moleSpawnInt); clearInterval(moleTimerInt);
+            moleSpawnInt = setInterval(spawnMole, 650);
+            moleTimerInt = setInterval(() => {
+                moleTimeLeft--; document.getElementById('mole-timer').innerText = Math.max(0, moleTimeLeft);
+                if (moleTimeLeft <= 0) endMoleGame();
+            }, 1000);
+        }
+        function spawnMole() {
+            if (!isMoleGameActive) return;
+            const empty = [...document.querySelectorAll('#mole-grid .mole-hole')].filter(h => !h.dataset.type);
+            if (!empty.length) return;
+            const h = empty[Math.floor(Math.random() * empty.length)];
+            const isBomb = Math.random() < 0.2;
+            h.dataset.type = isBomb ? 'bomb' : 'mole'; h.innerText = isBomb ? '💣' : '🐹';
+            setTimeout(() => { if (h.dataset.type) { delete h.dataset.type; h.innerText = ''; } }, 750);
+        }
+        function hitMole(h) {
+            if (!isMoleGameActive || !h.dataset.type) return;
+            const type = h.dataset.type; delete h.dataset.type;
+            if (type === 'mole') { playSound('coin'); addStars(30); addGrowth(2); moleScore++; document.getElementById('mole-score').innerText = moleScore; h.innerText = '💥'; }
+            else { playSound('fail'); addStars(-50); h.innerText = '😵'; }
+            setTimeout(() => { if (!h.dataset.type) h.innerText = ''; }, 250);
+        }
+        function endMoleGame() {
+            if (!isMoleGameActive) return;
+            isMoleGameActive = false; clearInterval(moleSpawnInt); clearInterval(moleTimerInt);
+            document.querySelectorAll('#mole-grid .mole-hole').forEach(h => { delete h.dataset.type; h.innerText = ''; });
+            playSound(moleScore > 0 ? 'levelup' : 'fail');
+            document.getElementById('mole-result').classList.remove('hidden');
+            showCustomMessage(`두더지 게임 종료!<br>🐹 ${moleScore}마리 잡았어요!`);
         }
 
         // [NEW] 시작 시 저장 데이터 확인 → 이어하기 버튼 표시
