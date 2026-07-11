@@ -244,7 +244,7 @@
             <div class="bg-white p-3 border-4 border-black mb-4 w-full text-xs font-bold">
                 <p>🏆 <b>컵 안의 공</b>: 정답 +500⭐ / 오답 -200⭐</p>
                 <p class="mt-1">🦟 <b>모기 잡기</b>: 모기 +50⭐ / 새 -30⭐</p>
-                <p class="mt-1">🍎 <b>간식 받기</b>: 간식 +20⭐ / 💩 -50⭐</p>
+                <p class="mt-1">🍎 <b>간식 받기</b>: 간식 +20⭐ / 💩 -20⭐</p>
                 <p class="mt-1">🐹 <b>두더지 잡기</b>: 두더지 +30⭐ / 💣 -50⭐</p>
             </div>
             <button class="pixel-btn primary !w-full" onclick="startCupGame()">컵 안의 공 맞추기</button>
@@ -1027,17 +1027,17 @@
             catchCtx.drawImage(catchBabyBuf, bx, by, bw, bw);
             // 아이템 스폰
             if (Math.random() < 0.045 + Math.min(0.03, level * 0.002)) {
-                const bad = Math.random() < 0.25;
-                catchItems.push({ x: 40 + Math.random() * (W - 80), y: -30, vy: 3 + Math.random() * 3, bad, emoji: bad ? '💩' : catchGoodEmojis[Math.floor(Math.random() * catchGoodEmojis.length)] });
+                const bad = Math.random() < 0.2;
+                catchItems.push({ x: 40 + Math.random() * (W - 80), y: -30, vy: 2.2 + Math.random() * 2, bad, emoji: bad ? '💩' : catchGoodEmojis[Math.floor(Math.random() * catchGoodEmojis.length)] });
             }
             catchCtx.font = '34px sans-serif'; catchCtx.textAlign = 'center';
             for (let i = catchItems.length - 1; i >= 0; i--) {
                 const it = catchItems[i]; it.y += it.vy;
                 catchCtx.fillText(it.emoji, it.x, it.y);
-                const caught = it.y > by + 40 && it.y < H - 40 && Math.abs(it.x - catchPlayerX) < 58;
+                const caught = it.y > by + 10 && it.y < H - 30 && Math.abs(it.x - catchPlayerX) < 80; // [FIX] 판정 범위 확대 (놓침 방지)
                 if (caught) {
                     catchItems.splice(i, 1);
-                    if (it.bad) { playSound('fail'); addStars(-50); showFloatPopup('catch-game-view', it.x, it.y, '-50', 'red'); }
+                    if (it.bad) { playSound('fail'); addStars(-20); showFloatPopup('catch-game-view', it.x, it.y, '-20', 'red'); } // [FIX] 감점 -50 → -20
                     else { playSound('coin'); addStars(20); catchScore++; document.getElementById('catch-score').innerText = catchScore; showFloatPopup('catch-game-view', it.x, it.y, '+20', 'yellow'); }
                 } else if (it.y > H + 40) { catchItems.splice(i, 1); }
             }
